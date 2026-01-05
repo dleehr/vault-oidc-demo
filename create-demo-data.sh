@@ -2,16 +2,19 @@
 
 . config.sh
 
-vault write auth/jwt/role/aap-oidc-demo-role -<<EOF
-{
-  "user_claim": "controller_project_name",
-  "bound_audiences": ["oidc-demo-audience"],
-  "role_type": "jwt",
-  "policies": "aap-oidc-demo-policy",
-  "not_before_leeway": 7200,
-  "ttl": "300s"
-}
-EOF
+set -x
+
+# First write some kv secrets to vault at predictable locations
+vault kv put "secret/oidc-demo-project/simple-secret" \
+  database_user=controller \
+  database_password=vault-secret-password-1
+
+vault kv put "secret/other-project/simple-secret" \
+  database_user=oidc_user \
+  database_password=jwt-this-down
+
+# Second, define the policy that allows JWT "users" to access secrets
+# if their usernames match secret/<username>/simple-secret
 
 # We need to know the id (accessor) of the JWT auth backend so that we can map policies to its users
 JWT_ACCESSOR=$(vault auth list --format json | jq -r '."jwt/".accessor')
@@ -23,11 +26,15 @@ path "secret/data/{{ identity.entity.aliases.${JWT_ACCESSOR}.name }}/simple-secr
 }
 EOF
 
-# Finally, write some simple secrets at these locations
-vault kv put "secret/oidc-demo-project/simple-secret" \
-  database_user=controller \
-  database_password=vault-secret-password-1
-
-vault kv put "secret/other-project/simple-secret" \
-  database_user=oidc_user \
-  database_password=jwt-this-down
+# Finally, create the JWT role that maps a claim from a JWT ('controller_project_name')
+# to a Vault user and binds it to the policy 'aap-oidc-demo-policy
+vault write auth/jwt/role/aap-oidc-demo-role -<<EOF
+{
+  "user_claim": "controller_project_name",
+  "bound_audiences": ["oidc-demo-audience"],
+  "role_type": "jwt",
+  "policies": "aap-oidc-demo-policy",
+  "not_before_leeway": 7200,
+  "ttl": "300s"
+}
+EOF
