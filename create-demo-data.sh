@@ -30,8 +30,8 @@ EOF
 # to a Vault user and binds it to the policy 'aap-oidc-demo-policy
 vault write auth/jwt/role/aap-oidc-demo-role -<<EOF
 {
-  "user_claim": "controller_project_name",
-  "bound_audiences": ["oidc-demo-audience"],
+  "user_claim": "aap_controller_project_name",
+  "bound_audiences": ["https://host.docker.internal:8200"],
   "role_type": "jwt",
   "policies": "aap-oidc-demo-policy",
   "not_before_leeway": 7200,
